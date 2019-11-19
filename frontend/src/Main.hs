@@ -4,6 +4,8 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GADTs #-}
 
 module Main where
 
@@ -18,6 +20,7 @@ import qualified Data.Text.Encoding          as T
 import           Data.Text (Text)
 import Data.Map.Strict (Map, singleton)
 import           GHCJS.DOM.HTMLElement       (IsHTMLElement, focus)
+import qualified GHCJS.DOM.Element as Element
 import           Language.Javascript.JSaddle hiding (Command)
 import           Reflex.Dom hiding (mainWidget, mainWidgetWithCss)
 import           Reflex.Dom.Core (mainWidget, mainWidgetWithCss)
@@ -42,6 +45,7 @@ main = do
 --  - add close connection button and associated message handling
 app
   :: ( DomBuilder t m
+     , DomBuilderSpace m ~ GhcjsDomSpace
      , MonadFix m
      , MonadHold t m
      , PostBuild t m
@@ -72,6 +76,7 @@ app r = do
       return $ _webSocket_recv ws
 
     receivedMessages <- foldDyn (\m ms -> ms ++ [m]) [] eRecRespTxt
+    panes r
     void $ el "div" $ do
       el "p" $ text "Responses from the backend chat -server:"
       el "ul" $ simpleList receivedMessages (\m -> el "li" $ dynText m)
@@ -99,6 +104,76 @@ buttonDynAttr label attrs = do
     --let attrs = ffor enabled $ \e -> monoidGuard (not e) $ "disabled" =: "disabled"
     (btn, _) <- elDynAttr' "button" attrs $ text label
     pure $ domEvent Click btn
+
+panes :: 
+      ( DomBuilder t m
+      , DomBuilderSpace m ~ GhcjsDomSpace
+      , PostBuild t m
+      , MonadFix m
+      , TriggerEvent t m
+      , PerformEvent t m
+      , MonadJSM m
+      , MonadJSM (Performable m)
+      , HasJSContext m
+      , MonadHold t m
+      ) 
+      => Text 
+      -> m ()
+panes r = elClass "div" "flex flex-column pa3" $
+  mdo
+    let msgRecEv = fmapMaybe decodeOneMsg wsRespEv
+        eRecRespTxt = fmap showMsg msgRecEv
+
+    throttledContent <- debounce 1 $ updated content
+    wsRespEv <- do
+      let sendEv = fmap (pure . encodeOneMsg . Execute) throttledContent
+      ws <- webSocket r $ def & webSocketConfig_send .~ (sendEv)
+
+      return $ _webSocket_recv ws
+
+    rendered <- holdDyn "" eRecRespTxt -- foldDyn (\m ms -> ms ++ [m]) [] eRecRespTxt
+ 
+    searchBar <- inputElement $ def & initialAttributes .~ ("class" =: "w-100") 
+    dynText $ value searchBar
+    content <- elClass "div" "flex" $ do
+      content <- editor
+      preview rendered 
+      pure content
+    blank
+  where
+    decodeOneMsg :: ByteString -> Maybe Command
+    decodeOneMsg = Aeson.decode . fromStrict
+
+    encodeOneMsg :: Command -> B.ByteString
+    encodeOneMsg = toStrict . Aeson.encode
+
+    showMsg :: Command -> Text
+    showMsg = \case
+      (Execute txt) -> txt
+      (ListDir txt)  -> "Listdir: " <> txt
+      Exit     -> "Exit"
+
+
+
+editor :: (DomBuilder t m, DomBuilderSpace m ~ GhcjsDomSpace, PostBuild t m) => m (Dynamic t Text)
+editor = do 
+  text <- textAreaElement $ def & initialAttributes .~ ("class" =: "outline")
+  pure $ _textAreaElement_value text
+
+preview :: (PerformEvent t m
+           , MonadJSM (Performable m)
+           , DomBuilder t m
+           , PostBuild t m
+           , Element.IsElement (RawElement (DomBuilderSpace m))) => Dynamic t Text -> m ()
+preview rendered = do
+    (e,_) <- elDynAttr' "div" (constDyn ("class" =: "outline w-50 pa3")) 
+      $ dynText rendered
+    performEvent_ (writePreview e rendered)
+    pure ()
+
+--writePreview :: RawElement 
+writePreview element rendered = (liftJSM . Element.setInnerHTML (_element_raw element)) <$> (updated rendered)
+
 {-
   where
     loginEv = \case

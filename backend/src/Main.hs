@@ -21,8 +21,11 @@ import           Reflex.Backend.WebSocket
 
 import           Data.Aeson (decode, encode)
 import           Common.Controller.Message
+import Data.Either.Extra (eitherToMaybe)
 
-import Data.Acid
+--import Data.Acid
+import qualified Data.Text as T
+import Text.Pandoc as Pan
 
 guest ::
   WsManager PendingConnection ->
@@ -44,7 +47,7 @@ guest wsm = basicHostForever $ mdo
       eRx = fmapMaybe ((decode . fromStrict) :: B.ByteString -> Maybe Command) (_wsReceive ws)
       f c r = encode r -- $ B.append (BC.pack . show $ c) r
       --eTx = (\c r -> pure $ f c r) <$> current dCount <@> eRx
-      eTx = pure . toStrict . encode <$> eRx
+      eTx = pure . toStrict . encode <$> (fmapMaybe renderCommand eRx)
       eClose = (\(_, w, b) -> (w, b)) <$> _wsClosed ws
       wsc = WebSocketConfig waited eClose
 
@@ -62,7 +65,7 @@ guest wsm = basicHostForever $ mdo
       action s fire = liftIO $ do
         putStrLn $ "Waiting for " ++ (show s)
         forkIO $ do
-          threadDelay 10000000
+          --threadDelay 10000000
           putStrLn $ "Waited for " ++ (show s)
           fire s
           threadDelay 1000000
@@ -82,6 +85,12 @@ guest wsm = basicHostForever $ mdo
 
   pure ()
 
+mdToHtml :: T.Text -> Either PandocError T.Text
+mdToHtml input = runPure $ Pan.readMarkdown def (input <> "wat") >>= Pan.writeHtml5String def
+
+renderCommand :: Command -> Maybe Command
+renderCommand (Execute txt) = Execute <$> (eitherToMaybe $ mdToHtml txt)
+renderCommand _ = Nothing
 --delayedAction event = liftIO . threadDelay 100000 <$ event
 
 main :: IO ()
