@@ -36,7 +36,7 @@ import           Common.Controller.Message (Command(..))
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-  css <- B.readFile "css/tachyons.min.css"
+  css <- B.readFile "static/css/tachyons.min.css"
   run $ mainWidgetWithCss css $ app "ws://localhost:9000"
 -- TODO
 --  - factor out the performEvents (see keyboard -example)
