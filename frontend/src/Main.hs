@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
 {-# LANGUAGE RecursiveDo       #-}
@@ -9,6 +10,7 @@
 
 module Main where
 
+import Prelude hiding (head)
 import qualified Data.Aeson as Aeson
 import           Data.ByteString    as B (ByteString(..), readFile)
 import           Data.ByteString.Lazy (toStrict, fromStrict)
@@ -22,41 +24,61 @@ import Data.Map.Strict (Map, singleton)
 import           GHCJS.DOM.HTMLElement       (IsHTMLElement, focus)
 import qualified GHCJS.DOM.Element as Element
 import           Language.Javascript.JSaddle hiding (Command)
-import           Reflex.Dom hiding (mainWidget, mainWidgetWithCss)
-import           Reflex.Dom.Core (mainWidget, mainWidgetWithCss)
+import           Reflex.Dom hiding (mainWidget, mainWidgetWithCss, mainWidgetWithHead)
+import           Reflex.Dom.Core (mainWidget, mainWidgetWithCss, mainWidgetWithHead)
 import           Reflex.Dynamic (constDyn)
 import Reflex.Dom.Class ((=:))
 import           Control.Monad.Fix (MonadFix)
 import           Control.Monad      (void)
 import           Text.URI
 
+import Reflex.CodeMirror
+
+import Control.Monad.IO.Class
+import Data.FileEmbed (embedFile)
 --------------------------------------------------------------------------------
 import           Common.Controller.Message (Command(..))
---import           Common.Route
+import qualified Language.Javascript.JSaddle.Warp as Warp
+import Reflex.CodeMirror
+
 --------------------------------------------------------------------------------
-main :: IO ()
+--main :: IO ()
 main = do
-  css <- B.readFile "static/css/tachyons.min.css"
-  run $ mainWidgetWithCss css $ app "ws://localhost:9000"
--- TODO
---  - factor out the performEvents (see keyboard -example)
---  - factor out the message forming
---  - factor out the textInput-button combos
---  - add close connection button and associated message handling
-app
-  :: ( DomBuilder t m
-     , DomBuilderSpace m ~ GhcjsDomSpace
-     , MonadFix m
-     , MonadHold t m
-     , PostBuild t m
-     , PerformEvent t m
-     , TriggerEvent t m
-     , Prerender js t m
-     , MonadJSM m
-     , MonadJSM (Performable m)
-     , HasJSContext m
-     , IsHTMLElement (RawInputElement (DomBuilderSpace m))
-     )
+ -- css <- B.readFile "static/css/tachyons.min.css"
+  Warp.run 12345 $ mainWidgetWithHead headWidget $ app "ws://localhost:9000"
+
+style :: Text -> (forall x. Widget x ())
+style = el "style" . text
+script :: Text -> (forall x. Widget x ())
+script = el "script" . text
+
+headWidget :: (forall x. Widget x ()) 
+--headWidget = el "script" $ pure ()
+headWidget = do
+  style $ T.decodeUtf8 tachyons
+  style $ T.decodeUtf8 codemirrorcss
+  script $ T.decodeUtf8 codemirrorjs
+  where
+    tachyons = $(embedFile "static/css/tachyons.min.css")
+    codemirrorcss = $(embedFile "static/css/codemirror.css")
+    codemirrorjs = $(embedFile "static/js/codemirror.js")
+    
+--app
+--  :: ( DomBuilder t m
+--     , DomBuilderSpace m ~ GhcjsDomSpace
+--     , MonadFix m
+--     , MonadHold t m
+--     , PostBuild t m
+--     , PerformEvent t m
+--     , TriggerEvent t m
+--     , Prerender js t m
+--     , MonadJSM m
+--     , MonadJSM (Performable m)
+--     , HasJSContext m
+--     , IsHTMLElement (RawInputElement (DomBuilderSpace m))
+--     )
+
+app ::  (MonadWidget t m,  Prerender js t m)
   => Text
   -> m ()
 app r = do
@@ -76,6 +98,7 @@ app r = do
       return $ _webSocket_recv ws
 
     receivedMessages <- foldDyn (\m ms -> ms ++ [m]) [] eRecRespTxt
+    codemirror $ def
     panes r
     void $ el "div" $ do
       el "p" $ text "Responses from the backend chat -server:"

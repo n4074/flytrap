@@ -5,11 +5,12 @@
     backend = ./backend;
     frontend = ./frontend;
     agent = ./agent;
+    reflex-codemirror = ./reflex-widgets/reflex-codemirror;
   };
 
   shells = {
-    ghc = ["common" "frontend" "backend" "agent"];
-    ghcjs = ["common" "frontend"];
+    ghc = ["common" "frontend" "backend" "agent" "reflex-codemirror" ];
+    ghcjs = ["common" "frontend" "backend" "agent" "reflex-codemirror" ];
   };
 
   ios.frontend = {
@@ -19,7 +20,7 @@
   };
 
   overrides = self: super: {
-    #lens = self.callHackage "lens" "4.15.4" {};
+    #haskell-src-exts = self.callHackage "haskell-src-exts" "1.20.3" {}; # pinned due to derive dependecy in reflex-codemirror
     #free = self.callCabal2nix "free" (pkgs.fetchFromGitHub {
     #  owner = "ekmett";
     #  repo = "free";

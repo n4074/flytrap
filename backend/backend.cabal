@@ -38,6 +38,7 @@ executable backend
                      , pandoc
                      , text
                      , extra
+                     , reflex-codemirror
   hs-source-dirs:      src
   ghc-options:         -threaded
   default-language:    Haskell2010

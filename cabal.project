@@ -3,3 +3,4 @@ packages:
   backend/
   frontend/
   agent/
+  reflex-widgets/reflex-codemirror
