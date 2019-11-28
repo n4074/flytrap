@@ -62,16 +62,19 @@ import qualified Language.Javascript.JSaddle.Warp
                                                as Warp
 import           Reflex.CodeMirror
 import           Control.Lens                   ( (?~) )
-
+import Text.Pandoc as Pan
+import Data.Either.Extra (eitherToMaybe)
 --------------------------------------------------------------------------------
 main = do
-  Warp.run 12345 $ mainWidgetWithHead headWidget $ app "ws://localhost:9000"
+  Warp.run 9090 $ mainWidgetWithHead headWidget $ app "ws://localhost:9000"
 
 headWidget :: (forall x . Widget x ())
 headWidget = do
-  style $ T.decodeUtf8 tachyons
-  style $ T.decodeUtf8 codemirrorcss
-  script $ T.decodeUtf8 codemirrorjs
+  style $ T.decodeUtf8 $(embedFile "static/css/codemirror.css")
+  style $ T.decodeUtf8 $(embedFile "static/css/zenburn.css")
+  style $ T.decodeUtf8 $(embedFile "static/css/tachyons.min.css")
+  script $ T.decodeUtf8 $(embedFile "static/js/codemirror.js")
+  script $ T.decodeUtf8 $(embedFile "static/js/markdown.js")
  where
   tachyons      = $(embedFile "static/css/tachyons.min.css")
   codemirrorcss = $(embedFile "static/css/codemirror.css")
@@ -92,12 +95,11 @@ headWidget = do
 --     , IsHTMLElement (RawInputElement (DomBuilderSpace m))
 --     )
 
-app :: (MonadWidget t m, Prerender js t m) => Text -> m ()
+app :: (MonadWidget t m, Prerender js t m, MonadHold t m) => Text -> m ()
 app r = do
   rec panes r
   blank
 
-panes
 --  :: ( DomBuilder t m
 --     , DomBuilderSpace m ~ GhcjsDomSpace
 --     , PostBuild t m
@@ -109,7 +111,7 @@ panes
 --     , HasJSContext m
 --     , MonadHold t m
 --     )
-  :: (MonadWidget t m) => Text -> m ()
+panes :: (MonadWidget t m, MonadHold t m) => Text -> m ()
 panes r = elClass "div" "flex flex-column pa3" $ mdo
 
   let msgRecEv    = fmapMaybe decodeOneMsg wsRespEv
@@ -129,10 +131,9 @@ panes r = elClass "div" "flex flex-column pa3" $ mdo
 
   dynText $ value searchBar
 
-  content <- elClass "div" "flex" $ do
-    content <- editor
-    preview rendered
-    pure content
+  content <- note rendered
+  note rendered
+  note rendered
   blank
  where
   decodeOneMsg :: ByteString -> Maybe Command
@@ -147,15 +148,32 @@ panes r = elClass "div" "flex flex-column pa3" $ mdo
     (ListDir txt) -> "Listdir: " <> txt
     Exit          -> "Exit"
 
+note :: (MonadWidget t m, MonadHold t m)
+  => Dynamic t Text
+  -> m (Dynamic t Text)
+note rendered = do
 
+  let showEditor False = ("hidden" =: "" <> "class" =: "w-100 br2")
+      showEditor True = ("class" =: "w-100 br2")
+      showRendered = showEditor . not
+  
+  editButton <- el "div" $ button "Edit"
+  editing <- toggle False editButton 
+
+  content <- editor (showEditor <$> editing)
+  preview (showRendered <$> editing) content
+  pure content
 
 editor
 --  :: (DomBuilder t m, DomBuilderSpace m ~ GhcjsDomSpace, PostBuild t m)
-  :: (MonadWidget t m) => m (Dynamic t Text)
-editor = do
-  elDynAttr "div" (constDyn ("class" =: "outline w-50 pa3")) $ do 
-      cm <- codemirror $ def & configuration_theme ?~ T.pack "zenburn" 
-      holdDyn "" cm
+  :: (MonadWidget t m) 
+  => Dynamic t (Map Text Text)
+  -> m (Dynamic t Text)
+editor attr = do
+  elDynAttr "div" attr $ do
+    cm <- codemirror $ def & configuration_theme ?~ T.pack "zenburn"
+                           & configuration_mode ?~ T.pack "markdown"
+    holdDyn "" cm
 
     --text <- textAreaElement $ def & initialAttributes .~ ("class" =: "outline")
     --pure $ _textAreaElement_value text
@@ -170,14 +188,20 @@ preview
      , PostBuild t m
      , Element.IsElement (RawElement (DomBuilderSpace m))
      )
-  => Dynamic t Text
+  => Dynamic t (Map Text Text)
+  -> Dynamic t Text
   -> m ()
-preview rendered = do
-  (e, _) <- elDynAttr' "div" (constDyn ("class" =: "outline w-50 pa3"))
+preview attr rendered = do
+  (e, _) <- elDynAttr' "div" attr
     $ dynText rendered
   performEvent_ (writePreview e rendered)
   pure ()
 
 writePreview element rendered =
-  (liftJSM . Element.setInnerHTML (_element_raw element)) <$> (updated rendered)
+  (liftJSM . Element.setInnerHTML (_element_raw element)) <$> (fmapMaybe ignoreErrors $ updated rendered)
 
+
+ignoreErrors = (eitherToMaybe . mdToHtml)
+
+mdToHtml :: T.Text -> Either PandocError T.Text
+mdToHtml input = runPure $ Pan.readMarkdown def input >>= Pan.writeHtml5String def

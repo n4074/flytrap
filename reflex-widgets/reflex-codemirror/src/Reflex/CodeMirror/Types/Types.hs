@@ -45,6 +45,3 @@ data Configuration
     , _configuration_pollInterval :: !(Maybe Int) -- Ms
     --
     } deriving (Show, Read, Eq, Data, Typeable, Generic, Default)
-
---instance Default Configuration where
---    def = genericDef
