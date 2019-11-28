@@ -26,6 +26,7 @@ executable frontend
                      , reflex-dom
                      , uri
                      , text
+                     , lens
                      , jsaddle
                      , jsaddle-warp
                      , ghcjs-dom
