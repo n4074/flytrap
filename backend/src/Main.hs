@@ -86,7 +86,7 @@ guest wsm = basicHostForever $ mdo
   pure ()
 
 mdToHtml :: T.Text -> Either PandocError T.Text
-mdToHtml input = runPure $ Pan.readMarkdown def (input <> "wat") >>= Pan.writeHtml5String def
+mdToHtml input = runPure $ Pan.readMarkdown def input >>= Pan.writeHtml5String def
 
 renderCommand :: Command -> Maybe Command
 renderCommand (Execute txt) = Execute <$> (eitherToMaybe $ mdToHtml txt)
