@@ -5,11 +5,18 @@
     backend = ./backend;
     frontend = ./frontend;
     agent = ./agent;
-    reflex-codemirror = ./reflex-widgets/reflex-codemirror;
+    reflex-codemirror = ./thirdparty/reflex-widgets/reflex-codemirror;
+    reflex-dom-svg = ./thirdparty/reflex-dom-svg;
   };
 
   shells = {
-    ghc = ["common" "frontend" "backend" "agent" "reflex-codemirror" ];
+    ghc = [
+      "common"
+      "frontend"
+      "backend"
+      "agent"
+      "reflex-codemirror" 
+      ];
     ghcjs = ["common" "frontend" "backend" "agent" "reflex-codemirror" ];
   };
 

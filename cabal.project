@@ -3,4 +3,5 @@ packages:
   backend/
   frontend/
   agent/
-  reflex-widgets/reflex-codemirror
+  thirdparty/reflex-widgets/reflex-codemirror
+  thirdparty/reflex-dom-svg/

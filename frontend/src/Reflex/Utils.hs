@@ -10,6 +10,7 @@ import           Language.Javascript.JSaddle
 import           GHCJS.DOM.HTMLElement          ( IsHTMLElement
                                                 , focus
                                                 )
+import qualified GHCJS.DOM.Element             as Element
 
 style :: Text -> (forall x . Widget x ())
 style = el "style" . text
@@ -60,3 +61,9 @@ buttonDynAttr label attrs = do
   (btn, _) <- elDynAttr' "button" attrs $ text label
   pure $ domEvent Click btn
 
+rawInnerHtml
+  :: (MonadJSM m, Element.IsElement (RawElement d))
+  => Element er d t
+  -> Text
+  -> m ()
+rawInnerHtml e t = liftJSM $ Element.setInnerHTML (_element_raw e) t
