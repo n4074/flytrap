@@ -28,3 +28,9 @@ pencil
   => Dynamic t (Map Text Text)
   -> m (Event t ())
 pencil attr = svgSprite (mappend ("viewport" =: "0 0 20 20" <> "fill" =: "currentColor") <$> attr) "#entypo-pencil" 
+
+pencilButton :: (DomBuilder t m, PostBuild t m) => m (Event t ())
+pencilButton = do
+  (e, _) <- elClass' "a" "item" $ 
+    elClass "i" "gamepad icon" $ blank
+  pure $ domEvent Click e

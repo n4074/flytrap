@@ -20,7 +20,7 @@ import           Data.ByteString.Lazy           ( toStrict
                                                 , fromStrict
                                                 )
 import           Data.Functor.Sum
-import           Data.List.NonEmpty
+import           Data.List.NonEmpty hiding (take)
 import           Data.Monoid                    ( (<>) )
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
@@ -67,20 +67,37 @@ import           Control.Lens                   ( (?~) )
 import           Text.Pandoc                   as Pan
 import           Data.Either.Extra              ( eitherToMaybe )
 
-import           Notescape.Icon                 ( pencil )
+import           Notescape.Icon                 ( pencil, pencilButton )
 --------------------------------------------------------------------------------
 main = do
   Warp.run 9090 $ mainWidgetWithHead headWidget $ app "ws://localhost:9000"
+
+data Note = Note {
+  content :: Text,
+  tags :: [Text],
+  uuid :: Text
+}
+
+mockdata = [loremIpsum]
+
+class HasContent a where
+  html :: a -> Text
+
+instance HasContent Note where
+  html = (either (T.pack . show) id) . mdToHtml . content
 
 headWidget :: (forall x . Widget x ())
 headWidget = do
   style $ T.decodeUtf8 $(embedFile "static/css/codemirror.css")
   --style $ T.decodeUtf8 $(embedFile "static/css/zenburn.css")
-  style $ T.decodeUtf8 $(embedFile "static/css/tachyons.min.css")
-  style $ T.decodeUtf8 $(embedFile "static/css/pandoc.css")
+  --style $ T.decodeUtf8 $(embedFile "static/css/tachyons.min.css")
+--  style $ T.decodeUtf8 $(embedFile "static/css/pandoc.css")
+  style $ T.decodeUtf8 $(embedFile "static/css/semantic.min.css")
   script $ T.decodeUtf8 $(embedFile "static/js/codemirror.js")
+  script $ T.decodeUtf8 $(embedFile "static/js/muya.min.js")
   --script $ T.decodeUtf8 $(embedFile "static/js/markdown.js")
   script $ T.decodeUtf8 $(embedFile "static/js/css.js")
+  script $ T.decodeUtf8 $(embedFile "static/css/muya.min.css")
   style $ T.decodeUtf8 $(embedFile "static/css/codemirror-github-light.css")
  --app
 --  :: ( DomBuilder t m
@@ -100,8 +117,38 @@ headWidget = do
 app :: (MonadWidget t m, Prerender js t m, MonadHold t m) => Text -> m ()
 app r = do
   svgSprites
-  panes r
+
+  elClass "div" "ui two column padded grid" $ do
+
+    elClass "div" "ui sixteen wide column" $ do
+      _ <- searchbar
+      blank
+
+    elClass "div" "ui four wide column" $ do
+      elClass "div" "ui fluid secondary vertical pointing menu" $ do
+        resultItem (text "AHeader") (text "SomeMeta") (text loremIpsumShort)
+        elClass "a" "item" $ text "3"
+
+    elClass "div" "ui twelve wide column" $ do
+      elClass "div" "ui text container" $ do
+        note (constDyn "") 
   blank
+
+resultItem header metadata description =
+  elClass "div" "ui item active" $ do
+    elClass "div" "ui items" $ do
+      elClass "div" "ui item" $ do
+        elClass "div" "content" $ do
+          elClass "div" "header" header
+          elClass "div" "meta" metadata
+          elClass "div" "description" description
+                
+
+loremIpsum :: Text
+loremIpsum = "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa strong. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede link mollis pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi."
+
+loremIpsumShort :: Text
+loremIpsumShort = "Lorem ipsum dolor sit amet, consectetuer adipiscing ..."
 
 svgSprites
   :: ( DomBuilder t m
@@ -120,6 +167,8 @@ svgSprites = do
   blank
 
 
+--sidebar = elClass "div" 
+
 --  :: ( DomBuilder t m
 --     , DomBuilderSpace m ~ GhcjsDomSpace
 --     , PostBuild t m
@@ -133,7 +182,7 @@ svgSprites = do
 --     )
 panes :: (MonadWidget t m, MonadHold t m) => Text -> m ()
 panes r =
-  elClass "div" "flex flex-column pa3 ph5 helvetica bg-white h-100" $ mdo
+  elClass "div" "ui main container" $ mdo
 
     let msgRecEv    = fmapMaybe decodeOneMsg wsRespEv
         eRecRespTxt = fmap showMsg msgRecEv
@@ -148,9 +197,8 @@ panes r =
 
     rendered  <- holdDyn "" eRecRespTxt -- foldDyn (\m ms -> ms ++ [m]) [] eRecRespTxt
 
-    searchBar <- inputElement $ def & initialAttributes .~ ("class" =: "w-100 h2 ba br2 b--moon-gray")
-
-    dynText $ value searchBar
+    --searchBar <- inputElement $ def & initialAttributes .~ ("class" =: "w-100 h2 ba br2 b--moon-gray")
+    dSb <- searchbar
 
     content <- note rendered 
     note rendered
@@ -169,19 +217,22 @@ panes r =
     (ListDir txt) -> "Listdir: " <> txt
     Exit          -> "Exit"
 
+searchbar :: (DomBuilder t m) => m (Dynamic t Text)
+searchbar = elClass "div" "ui fluid icon input" $ do
+    input <- inputElement $ def & initialAttributes .~ ("class" =: "w-100 h2 ba br2 b--moon-gray" <> "placeholder" =: "Query")
+    elClass "i" "inverted circular search link icon" $ blank
+    pure $ _inputElement_value input
+
 note :: (MonadWidget t m, MonadHold t m) => Dynamic t Text -> m (Dynamic t Text)
-note rendered = elClass "div" "flex flex-column mv2 overflow-hidden ba br2 b--moon-gray" $ do
-  let editorAttr = ("class" =: "w-100")
-      noteAttr   = ("class" =: "w-100 pa3 note")
+note rendered = elClass "div" "ui " $ do
+  let editorAttr = ("class" =: "ui bottom attached segment")
+      noteAttr   = ("class" =: "ui bottom attached segment note")
       mkHidden False = ("hidden" =: "")
       mkHidden True  = mempty
 
-  --pencil
-  --editButton <- el "div" $ buttonDynAttr
-  --  "Edit"
-  --  (constDyn ("class" =: "br2 pa2 near-white hover-bg-gray bg-black"))
-  editing <- elClass "div" "flex flex-row justify-end overflow-hidden bg-near-white red bb b--moon-gray" $ do
-    editButton <- pencil $ constDyn ("class" =: "h1 w1 pa2 ml-auto hover-gray")
+  editing <- elClass "div" "ui top attached menu" $ do
+    editButton <- pencilButton 
+    --editButton <- pencil $ constDyn ("class" =: "h1 w1 pa2 ml-auto hover-gray")
 --    pencil $ constDyn ("class" =: "h2 w2 outline")
     toggle False editButton
 
