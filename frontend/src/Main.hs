@@ -89,15 +89,17 @@ instance HasContent Note where
 headWidget :: (forall x . Widget x ())
 headWidget = do
   style $ T.decodeUtf8 $(embedFile "static/css/codemirror.css")
-  --style $ T.decodeUtf8 $(embedFile "static/css/zenburn.css")
-  --style $ T.decodeUtf8 $(embedFile "static/css/tachyons.min.css")
+  style $ T.decodeUtf8 $(embedFile "static/css/zenburn.css")
+  style $ T.decodeUtf8 $(embedFile "static/css/tachyons.min.css")
 --  style $ T.decodeUtf8 $(embedFile "static/css/pandoc.css")
   style $ T.decodeUtf8 $(embedFile "static/css/semantic.min.css")
+  style $ T.decodeUtf8 $(embedFile "static/css/layout.css")
   script $ T.decodeUtf8 $(embedFile "static/js/codemirror.js")
   script $ T.decodeUtf8 $(embedFile "static/js/muya.min.js")
+  script $ T.decodeUtf8 $(embedFile "static/js/split-grid.js")
   --script $ T.decodeUtf8 $(embedFile "static/js/markdown.js")
   script $ T.decodeUtf8 $(embedFile "static/js/css.js")
-  script $ T.decodeUtf8 $(embedFile "static/css/muya.min.css")
+  style $ T.decodeUtf8 $(embedFile "static/css/muya.min.css")
   style $ T.decodeUtf8 $(embedFile "static/css/codemirror-github-light.css")
  --app
 --  :: ( DomBuilder t m
@@ -116,34 +118,21 @@ headWidget = do
 
 app :: (MonadWidget t m, Prerender js t m, MonadHold t m) => Text -> m ()
 app r = do
-  svgSprites
+  --svgSprites
 
-  elClass "div" "ui two column padded grid" $ do
+  elClass "div" "container pa2" $ do
+    elClass "div" "searchbar" $ do
+      searchbar
 
-    elClass "div" "ui sixteen wide column" $ do
-      _ <- searchbar
-      blank
+    elClass "div" "resultset" $ blank
+    
+    elClass "div" "main-gutter" $ blank
+      
+    elClass "div" "editor" $ note (constDyn "") 
 
-    elClass "div" "ui four wide column" $ do
-      elClass "div" "ui fluid secondary vertical pointing menu" $ do
-        resultItem (text "AHeader") (text "SomeMeta") (text loremIpsumShort)
-        elClass "a" "item" $ text "3"
+    blank
 
-    elClass "div" "ui twelve wide column" $ do
-      elClass "div" "ui text container" $ do
-        note (constDyn "") 
-  blank
-
-resultItem header metadata description =
-  elClass "div" "ui item active" $ do
-    elClass "div" "ui items" $ do
-      elClass "div" "ui item" $ do
-        elClass "div" "content" $ do
-          elClass "div" "header" header
-          elClass "div" "meta" metadata
-          elClass "div" "description" description
-                
-
+               
 loremIpsum :: Text
 loremIpsum = "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa strong. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede link mollis pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi."
 
@@ -224,9 +213,9 @@ searchbar = elClass "div" "ui fluid icon input" $ do
     pure $ _inputElement_value input
 
 note :: (MonadWidget t m, MonadHold t m) => Dynamic t Text -> m (Dynamic t Text)
-note rendered = elClass "div" "ui " $ do
-  let editorAttr = ("class" =: "ui bottom attached segment")
-      noteAttr   = ("class" =: "ui bottom attached segment note")
+note rendered = elClass "div" "" $ do
+  let editorAttr = ("class" =: "ui bottom attached segment" )
+      noteAttr   = ("class" =: "ui bottom attached segment note" <> "id" =: "editor")
       mkHidden False = ("hidden" =: "")
       mkHidden True  = mempty
 
