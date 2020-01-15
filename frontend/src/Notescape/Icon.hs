@@ -34,3 +34,20 @@ pencilButton = do
   (e, _) <- elClass' "a" "item" $ 
     elClass "i" "gamepad icon" $ blank
   pure $ domEvent Click e
+
+--iconSet
+--  :: ( DomBuilder t m
+--     , PostBuild t m
+--     , PerformEvent t m
+--     , Element.IsElement (RawElement (DomBuilderSpace m))
+--     , MonadJSM (Performable m)
+--     )
+--  => m ()
+--iconSet = do
+--  (e, _) <- el' "div" $ blank
+--  eDone  <- getPostBuild
+--  performEvent_
+--    $  (rawInnerHtml e $ T.decodeUtf8 $(embedFile "static/svg/sprite.svg"))
+--    <$ eDone
+--  blank
+

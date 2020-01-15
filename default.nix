@@ -16,7 +16,7 @@
       "backend"
       "agent"
       "reflex-codemirror" 
-      ];
+    ];
     ghcjs = ["common" "frontend" "backend" "agent" "reflex-codemirror" ];
   };
 
@@ -53,7 +53,5 @@
       sha256 = "1a8ahzf5j4xpm4r79lxsfpm5663lf1g41i8k52bi6c71zkk0j0cq";
     }) {}) ./nix/patches/reflex-backend-websocket-0.1.0.0.patch;
     uri = pkgs.haskell.lib.doJailbreak (self.callHackage "uri" "0.1.6.5" {}); # marked as broken in nix
-
-    #stm = self.callHackage "stm" "2.4.5.1" {}; 
   };
 })

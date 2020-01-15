@@ -78,8 +78,6 @@ data Note = Note {
   uuid :: Text
 }
 
-mockdata = [loremIpsum]
-
 class HasContent a where
   html :: a -> Text
 
@@ -118,7 +116,6 @@ headWidget = do
 
 app :: (MonadWidget t m, Prerender js t m, MonadHold t m) => Text -> m ()
 app r = do
-  --svgSprites
 
   elClass "div" "container pa2" $ do
     elClass "div" "searchbar" $ do
@@ -128,83 +125,10 @@ app r = do
     
     elClass "div" "main-gutter" $ blank
       
-    elClass "div" "editor" $ note (constDyn "") 
+    elClass "div" "editor" $ editor
 
     blank
 
-               
-loremIpsum :: Text
-loremIpsum = "Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa strong. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget, arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo. Nullam dictum felis eu pede link mollis pretium. Integer tincidunt. Cras dapibus. Vivamus elementum semper nisi. Aenean vulputate eleifend tellus. Aenean leo ligula, porttitor eu, consequat vitae, eleifend ac, enim. Aliquam lorem ante, dapibus in, viverra quis, feugiat a, tellus. Phasellus viverra nulla ut metus varius laoreet. Quisque rutrum. Aenean imperdiet. Etiam ultricies nisi vel augue. Curabitur ullamcorper ultricies nisi."
-
-loremIpsumShort :: Text
-loremIpsumShort = "Lorem ipsum dolor sit amet, consectetuer adipiscing ..."
-
-svgSprites
-  :: ( DomBuilder t m
-     , PostBuild t m
-     , PerformEvent t m
-     , Element.IsElement (RawElement (DomBuilderSpace m))
-     , MonadJSM (Performable m)
-     )
-  => m ()
-svgSprites = do
-  (e, _) <- el' "div" $ blank
-  eDone  <- getPostBuild
-  performEvent_
-    $  (rawInnerHtml e $ T.decodeUtf8 $(embedFile "static/svg/sprite.svg"))
-    <$ eDone
-  blank
-
-
---sidebar = elClass "div" 
-
---  :: ( DomBuilder t m
---     , DomBuilderSpace m ~ GhcjsDomSpace
---     , PostBuild t m
---     , MonadFix m
---     , TriggerEvent t m
---     , PerformEvent t m
---     , MonadJSM m
---     , MonadJSM (Performable m)
---     , HasJSContext m
---     , MonadHold t m
---     )
-panes :: (MonadWidget t m, MonadHold t m) => Text -> m ()
-panes r =
-  elClass "div" "ui main container" $ mdo
-
-    let msgRecEv    = fmapMaybe decodeOneMsg wsRespEv
-        eRecRespTxt = fmap showMsg msgRecEv
-
-    throttledContent <- debounce 1 $ updated content
-
-    wsRespEv         <- do
-      let sendEv = fmap (pure . encodeOneMsg . Execute) throttledContent
-      ws <- webSocket r $ def & webSocketConfig_send .~ (sendEv)
-
-      return $ _webSocket_recv ws
-
-    rendered  <- holdDyn "" eRecRespTxt -- foldDyn (\m ms -> ms ++ [m]) [] eRecRespTxt
-
-    --searchBar <- inputElement $ def & initialAttributes .~ ("class" =: "w-100 h2 ba br2 b--moon-gray")
-    dSb <- searchbar
-
-    content <- note rendered 
-    note rendered
-    note rendered
-    blank
- where
-  decodeOneMsg :: ByteString -> Maybe Command
-  decodeOneMsg = Aeson.decode . fromStrict
-
-  encodeOneMsg :: Command -> B.ByteString
-  encodeOneMsg = toStrict . Aeson.encode
-
-  showMsg :: Command -> Text
-  showMsg = \case
-    (Execute txt) -> txt
-    (ListDir txt) -> "Listdir: " <> txt
-    Exit          -> "Exit"
 
 searchbar :: (DomBuilder t m) => m (Dynamic t Text)
 searchbar = elClass "div" "ui fluid icon input" $ do
@@ -212,8 +136,8 @@ searchbar = elClass "div" "ui fluid icon input" $ do
     elClass "i" "inverted circular search link icon" $ blank
     pure $ _inputElement_value input
 
-note :: (MonadWidget t m, MonadHold t m) => Dynamic t Text -> m (Dynamic t Text)
-note rendered = elClass "div" "" $ do
+editor :: (MonadWidget t m, MonadHold t m) => m (Dynamic t Text)
+editor = elClass "div" "" $ do
   let editorAttr = ("class" =: "ui bottom attached segment" )
       noteAttr   = ("class" =: "ui bottom attached segment note" <> "id" =: "editor")
       mkHidden False = ("hidden" =: "")
@@ -225,14 +149,14 @@ note rendered = elClass "div" "" $ do
 --    pencil $ constDyn ("class" =: "h2 w2 outline")
     toggle False editButton
 
-  content <- editor (mappend editorAttr <$> mkHidden <$> editing)
-  preview (mappend noteAttr <$> mkHidden . not <$> editing) content
+  content <- sourceView (mappend editorAttr <$> mkHidden <$> editing)
+  liveView (mappend noteAttr <$> mkHidden . not <$> editing) content
   pure content
 
-editor
+sourceView
 --  :: (DomBuilder t m, DomBuilderSpace m ~ GhcjsDomSpace, PostBuild t m)
   :: (MonadWidget t m) => Dynamic t (Map Text Text) -> m (Dynamic t Text)
-editor attr = do
+sourceView attr = do
   elDynAttr "div" attr $ do
     cm <-
       codemirror
@@ -259,9 +183,9 @@ editor attr = do
 --  => Dynamic t (Map Text Text)
 --  -> Dynamic t Text
 --  -> m ()
-preview
+liveView
   :: (MonadWidget t m) => Dynamic t (Map Text Text) -> Dynamic t Text -> m ()
-preview attr rendered = do
+liveView attr rendered = do
   (e, _) <- elDynAttr' "div" attr $ dynText rendered
   performEvent_ (writePreview e rendered)
   pure ()
