@@ -34,7 +34,6 @@ executable backend
                      , aeson
                      , servant
                      , servant-server
-                     , acid-state
                      , pandoc
                      , text
                      , extra

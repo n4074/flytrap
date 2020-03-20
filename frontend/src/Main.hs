@@ -36,11 +36,11 @@ import           Language.Javascript.JSaddle
                                          hiding ( Command )
 import           Reflex.Dom              hiding ( mainWidget
                                                 , mainWidgetWithCss
-                                                , mainWidgetWithHead
+--                                                , mainWidgetWithHead
                                                 )
 import           Reflex.Dom.Core                ( mainWidget
                                                 , mainWidgetWithCss
-                                                , mainWidgetWithHead
+--                                                , mainWidgetWithHead
                                                 )
 import           Reflex.Dynamic                 ( constDyn )
 import           Reflex.Dom.Class               ( (=:) )
@@ -60,17 +60,17 @@ import           Control.Monad.IO.Class
 import           Data.FileEmbed                 ( embedFile )
 
 import           Common.Controller.Message      ( Command(..) )
-import qualified Language.Javascript.JSaddle.Warp
-                                               as Warp
+--import qualified Language.Javascript.JSaddle.Warp
+--                                               as Warp
 import           Reflex.CodeMirror
 import           Control.Lens                   ( (?~) )
-import           Text.Pandoc                   as Pan
+--import           Text.Pandoc                   as Pan
 import           Data.Either.Extra              ( eitherToMaybe )
 
 import           Notescape.Icon                 ( pencil, pencilButton )
 --------------------------------------------------------------------------------
 main = do
-  Warp.run 9090 $ mainWidgetWithHead headWidget $ app "ws://localhost:9000"
+  mainWidgetWithHead headWidget $ app "ws://localhost:9000"
 
 data Note = Note {
   content :: Text,
@@ -86,6 +86,7 @@ instance HasContent Note where
 
 headWidget :: (forall x . Widget x ())
 headWidget = do
+  elDynAttr "meta" (constDyn ("name" =: "viewport" <> "content" =: "width=device-width, initial-scale=1")) $ blank -- <meta name="viewport" content="width=device-width, initial-scale=1">
   style $ T.decodeUtf8 $(embedFile "static/css/codemirror.css")
   style $ T.decodeUtf8 $(embedFile "static/css/zenburn.css")
   style $ T.decodeUtf8 $(embedFile "static/css/tachyons.min.css")
@@ -99,6 +100,7 @@ headWidget = do
   script $ T.decodeUtf8 $(embedFile "static/js/css.js")
   style $ T.decodeUtf8 $(embedFile "static/css/muya.min.css")
   style $ T.decodeUtf8 $(embedFile "static/css/codemirror-github-light.css")
+
  --app
 --  :: ( DomBuilder t m
 --     , DomBuilderSpace m ~ GhcjsDomSpace
@@ -199,6 +201,8 @@ writePreview element rendered =
 
 ignoreErrors = (eitherToMaybe . mdToHtml)
 
-mdToHtml :: T.Text -> Either PandocError T.Text
-mdToHtml input =
-  runPure $ Pan.readMarkdown def input >>= Pan.writeHtml5String def
+--mdToHtml :: T.Text -> Either PandocError T.Text
+--mdToHtml input =
+--  runPure $ Pan.readMarkdown def input >>= Pan.writeHtml5String def
+mdToHtml :: T.Text -> Either T.Text T.Text
+mdToHtml t = Right t

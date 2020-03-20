@@ -9,6 +9,8 @@
     reflex-dom-svg = ./thirdparty/reflex-dom-svg;
   };
 
+  useWarp = true;
+
   shells = {
     ghc = [
       "common"

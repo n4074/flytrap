@@ -30,14 +30,14 @@ executable frontend
                      , text
                      , lens
                      , jsaddle
-                     , jsaddle-warp
+                     --, jsaddle-warp
                      , ghcjs-dom
                      , containers
                      , aeson
                      , bytestring
                      , file-embed
                      , reflex-codemirror
-                     , pandoc
+                     --, pandoc
                      , extra
                      --, hasbolt
   hs-source-dirs: src
